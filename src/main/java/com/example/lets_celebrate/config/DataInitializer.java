@@ -3,12 +3,10 @@ package com.example.lets_celebrate.config;
 import com.example.lets_celebrate.entity.*;
 import com.example.lets_celebrate.repository.*;
 import org.springframework.boot.CommandLineRunner;
-import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 
 @Component
-@Profile("!prod")
 public class DataInitializer implements CommandLineRunner {
 
     private final ServiceCategoryRepository categoryRepo;
