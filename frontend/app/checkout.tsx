@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/store';
 import { clearCart, removeFromCart } from '@/store/cartSlice';
@@ -8,25 +8,58 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Button } from '@/components/ui/Button';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import api from '@/api';
 
 export default function CheckoutScreen() {
   const { items } = useSelector((state: RootState) => state.cart);
+  const { userId } = useSelector((state: RootState) => state.auth);
   const dispatch = useDispatch();
+  const [loading, setLoading] = useState(false);
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
 
   const total = items.reduce((sum, item) => sum + item.price, 0);
 
-  const handleCheckout = () => {
-    Alert.alert("Success", "Your booking has been placed and payment is processing!", [
-      { 
-        text: "OK", 
-        onPress: () => {
-          dispatch(clearCart());
-          router.replace('/(tabs)');
-        } 
+  const handleCheckout = async () => {
+    if (!userId) { Alert.alert('Error', 'Please log in to place a booking.'); return; }
+    setLoading(true);
+    try {
+      const eventDate = new Date();
+      eventDate.setDate(eventDate.getDate() + 30);
+      const dateStr = eventDate.toISOString().split('T')[0];
+
+      for (const item of items) {
+        const bookingRes = await api.post('/bookings', {
+          user: { userId },
+          serviceListing: { serviceId: item.serviceId },
+          eventDate: dateStr,
+          eventStart: `${dateStr}T14:00:00`,
+          eventEnd: `${dateStr}T22:00:00`,
+          totalAmount: item.price,
+          advanceAmount: Math.round(item.price * 0.5),
+          dueAmount: Math.round(item.price * 0.5),
+        });
+
+        await api.post('/payments/create-order', {
+          booking: { bookingId: bookingRes.data.bookingId },
+          amount: Math.round(item.price * 0.5),
+          paymentType: 'ADVANCE',
+          status: 'SUCCESS',
+          gatewayReference: `DEMO-${Date.now()}`,
+        });
       }
-    ]);
+
+      dispatch(clearCart());
+      Alert.alert(
+        'Booking Confirmed!',
+        `${items.length} service${items.length > 1 ? 's' : ''} booked. Advance paid: $${Math.round(total * 0.5)}. The vendor will contact you to confirm the date.`,
+        [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
+      );
+    } catch (e) {
+      Alert.alert('Error', 'Failed to place booking. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const renderItem = ({ item }: { item: any }) => (
@@ -64,7 +97,7 @@ export default function CheckoutScreen() {
                <Text style={[styles.totalLabel, { color: colors.text }]}>Total:</Text>
                <Text style={[styles.totalAmount, { color: colors.primary }]}>${total.toLocaleString()}</Text>
              </View>
-             <Button title="Proceed to Payment" onPress={handleCheckout} />
+             <Button title={loading ? 'Placing Booking...' : 'Proceed to Payment'} onPress={handleCheckout} loading={loading} />
           </View>
         </>
       )}

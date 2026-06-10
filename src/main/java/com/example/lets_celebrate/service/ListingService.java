@@ -24,6 +24,11 @@ public class ListingService {
     }
 
     public List<ServiceListing> search(String city, String category) {
+        boolean allCities = city == null || city.isBlank() || city.equalsIgnoreCase("All");
+        boolean allCategories = category == null || category.isBlank() || category.equalsIgnoreCase("All");
+        if (allCities && allCategories) return listingRepository.findAll();
+        if (allCities) return listingRepository.findByCategory_Name(category);
+        if (allCategories) return listingRepository.findByCity(city);
         return listingRepository.findByCityAndCategory_Name(city, category);
     }
 }

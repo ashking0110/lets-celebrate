@@ -1,14 +1,19 @@
 import axios from 'axios';
+import { store } from './store';
 
-// Ensure this matches the IP your Expo logs say you are serving from or localhost if in web
-// Replace with your local IP if running on a physical device. e.g., 192.168.x.x
-export const API_URL = 'http://192.168.29.182:8080';
+export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8080';
 
 const api = axios.create({
   baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  headers: { 'Content-Type': 'application/json' },
+});
+
+api.interceptors.request.use(config => {
+  const token = store.getState().auth.token;
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 export default api;

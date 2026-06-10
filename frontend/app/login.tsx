@@ -23,26 +23,19 @@ export default function LoginScreen() {
   const colors = Colors[colorScheme];
 
   const handleAuth = async () => {
+    if (!email || !password) return;
     setLoading(true);
     try {
-      if (isLogin) {
-        // This hits your Spring Boot backend /users/login
-        const response = await api.post('/users/login', { email, passwordHash: password, role });
-        // Assume API returns a token in response.data or string
-        const token = typeof response.data === 'string' ? response.data : response.data.token || 'dummy_token';
-        
-        dispatch(loginSuccess({ token, userId: 1, role }));
-        router.replace('/(tabs)');
-      } else {
-        const response = await api.post('/users/signup', { email, passwordHash: password, role });
-        dispatch(loginSuccess({ token: 'dummy_token', userId: response.data?.userId || 1, role }));
-        router.replace('/(tabs)');
-      }
-    } catch (e) {
-      console.log('API error, falling back to local login for demo purposes.', e);
-      // Fallback for Development Demonstration
-      dispatch(loginSuccess({ token: 'demo_token_123', userId: 1, role }));
+      const endpoint = isLogin ? '/users/login' : '/users/signup';
+      const response = await api.post(endpoint, { email, passwordHash: password, role });
+      const { token, userId, role: returnedRole } = response.data;
+      dispatch(loginSuccess({ token, userId, role: returnedRole ?? role }));
       router.replace('/(tabs)');
+    } catch (e: any) {
+      const msg = e?.response?.status === 401
+        ? 'Invalid email or password.'
+        : 'Could not connect to server. Please try again.';
+      alert(msg);
     } finally {
       setLoading(false);
     }

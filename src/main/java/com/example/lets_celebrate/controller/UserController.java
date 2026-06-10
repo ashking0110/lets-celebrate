@@ -8,30 +8,36 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/users")
 public class UserController {
-    
+
+    record LoginResponse(String token, Long userId, String name, String email, String role) {}
+
     private final UserService userService;
-    
+
     public UserController(UserService userService) {
         this.userService = userService;
     }
-    
+
     @PostMapping("/signup")
-    public ResponseEntity<User> signup(@RequestBody User user) {
-        return ResponseEntity.ok(userService.signup(user));
+    public ResponseEntity<LoginResponse> signup(@RequestBody User user) {
+        User saved = userService.signup(user);
+        return ResponseEntity.ok(toLoginResponse(saved));
     }
-    
-    // Placeholder login
+
     @PostMapping("/login")
-    public ResponseEntity<String> login(@RequestBody User user) {
+    public ResponseEntity<LoginResponse> login(@RequestBody User user) {
         return userService.login(user.getEmail(), user.getPasswordHash())
-                .map(u -> ResponseEntity.ok("token_for_" + u.getUserId()))
+                .map(u -> ResponseEntity.ok(toLoginResponse(u)))
                 .orElse(ResponseEntity.status(401).build());
     }
-    
+
     @GetMapping("/{userId}/profile")
     public ResponseEntity<User> getProfile(@PathVariable Long userId) {
         return userService.getProfile(userId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    private LoginResponse toLoginResponse(User u) {
+        return new LoginResponse("token_for_" + u.getUserId(), u.getUserId(), u.getName(), u.getEmail(), u.getRole());
     }
 }
